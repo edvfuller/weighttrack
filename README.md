@@ -1,7 +1,10 @@
 # Weighttrack
 
-This README outlines the details of collaborating on this Ember application.
-A short introduction of this app could easily go here.
+**Want to try it?** See [`demo/`](demo/): a working, dependency-free weight
+tracker with a smoothed trend line, weekly rate and goal projection.
+
+The rest of this repo is the original, empty Ember CLI 1.13 scaffold from 2015.
+The notes below describe that scaffold.
 
 ## Prerequisites
 

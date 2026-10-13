@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weighttrack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one 920px column. Summary (trend + log form), stat row, range filter, chart, weigh-in table, settings. */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --ink: #121821;
+  --ink-2: #4b5563;
+  --muted: #6f7988;
+  --hair: #e3e7ed;
+  --axis: #c6cdd7;
+  --trend: #2a78d6;
+  --reading: #97a1ae;
+  --stem: #d3d9e1;
+  --accent: #1c5cab;
+  --on-accent: #ffffff;
+  --good: #006300;
+  --tint: #e9f1fb;
+  --danger: #b42318;
+  --font-ui: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1116; --surface: #161a20; --ink: #eef1f5; --ink-2: #b6bfcb; --muted: #8b95a4;
+    --hair: #252b34; --axis: #3a424e; --trend: #3987e5; --reading: #6c7685; --stem: #2f3640;
+    --accent: #5598e7; --on-accent: #08111f; --good: #0ca30c; --tint: #142338; --danger: #f97066;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1116; --surface: #161a20; --ink: #eef1f5; --ink-2: #b6bfcb; --muted: #8b95a4;
+  --hair: #252b34; --axis: #3a424e; --trend: #3987e5; --reading: #6c7685; --stem: #2f3640;
+  --accent: #5598e7; --on-accent: #08111f; --good: #0ca30c; --tint: #142338; --danger: #f97066;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 var(--font-ui);
+}
+main {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 28px 20px 64px;
+  display: grid;
+  gap: 28px;
+}
+h1, h2 { margin: 0; text-wrap: balance; }
+h2 { font-size: 15px; font-weight: 600; }
+p { margin: 0; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.brand h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.brand p { color: var(--ink-2); }
+
+/* Segmented controls (units, range) */
+.seg { display: inline-flex; border: 1px solid var(--hair); border-radius: 8px; background: var(--surface); padding: 2px; }
+.seg button {
+  border: 0; background: none; padding: 4px 12px; border-radius: 6px;
+  color: var(--ink-2); font-weight: 500; font-size: 14px;
+}
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--tint); color: var(--ink); font-weight: 600; }
+
+.banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  background: var(--tint); border-radius: 10px; padding: 12px 16px; color: var(--ink);
+}
+.banner p { min-width: 0; flex: 1 1 320px; }
+
+/* Summary */
+.summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 24px; align-items: start; }
+.label { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+.hero-value { font-size: 64px; font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; margin-top: 4px; }
+.hero-value .unit { font-size: 24px; font-weight: 500; color: var(--ink-2); letter-spacing: 0; }
+.hero-sub { color: var(--ink-2); margin-top: 8px; max-width: 46ch; }
+
+.card { background: var(--surface); border: 1px solid var(--hair); border-radius: 12px; }
+.log { padding: 16px; display: grid; gap: 12px; }
+.fields { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px; }
+.field { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); font-weight: 500; }
+.field input, .settings input {
+  width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--axis); border-radius: 8px;
+  background: var(--bg); color: var(--ink); font-size: 15px;
+}
+.with-unit { position: relative; }
+.with-unit input { padding-right: 34px; }
+.with-unit span { position: absolute; right: 10px; top: 50%; translate: 0 -50%; color: var(--muted); pointer-events: none; }
+.primary {
+  border: 0; border-radius: 8px; padding: 9px 14px; background: var(--accent); color: var(--on-accent);
+  font-weight: 600;
+}
+.primary:hover { filter: brightness(1.08); }
+.form-msg { font-size: 13px; color: var(--ink-2); }
+.form-msg:empty { display: none; }
+.form-msg.error { color: var(--danger); }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; border-block: 1px solid var(--hair); }
+.stats > div { padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+.stats > div + div { border-left: 1px solid var(--hair); }
+.stats dt { font-size: 13px; color: var(--ink-2); }
+.stats dd { margin: 0; }
+.stat-value { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.stat-value.toward { color: var(--good); }
+.stat-value .arrow { font-size: 0.6em; vertical-align: 0.25em; margin-right: 4px; }
+.stat-note { font-size: 13px; color: var(--ink-2); }
+
+/* History */
+.history-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.history-head h2 { font-size: 18px; }
+.chart-card { padding: 14px 8px 8px 4px; }
+.legend { list-style: none; margin: 0 0 6px; padding: 0 12px; display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; color: var(--ink-2); }
+.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.chart { position: relative; height: 300px; outline-offset: -2px; touch-action: pan-y; }
+.chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.chart text { font-family: var(--font-data); font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.chart .end-label { fill: var(--ink); font-weight: 500; font-size: 12px; }
+.chart .goal-label { fill: var(--ink-2); }
+.tip {
+  position: absolute; top: 4px; pointer-events: none; min-width: 150px;
+  background: var(--surface); border: 1px solid var(--hair); border-radius: 8px; padding: 8px 10px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12); font-size: 13px; display: grid; gap: 4px;
+}
+.tip-date { color: var(--ink-2); font-size: 12px; }
+.tip-row { display: grid; grid-template-columns: 14px auto 1fr; align-items: center; gap: 6px; }
+.tip-row strong { font-weight: 600; font-variant-numeric: tabular-nums; }
+.tip-row span:last-child { color: var(--ink-2); }
+.tip-diff { color: var(--ink-2); font-size: 12px; }
+.empty { padding: 48px 20px; text-align: center; color: var(--ink-2); display: grid; gap: 12px; justify-items: center; }
+.empty strong { color: var(--ink); font-size: 16px; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: right; white-space: nowrap; font-weight: 500; font-size: 13px; color: var(--ink-2); padding: 8px 12px; border-bottom: 1px solid var(--hair); }
+td { text-align: right; padding: 8px 12px; border-bottom: 1px solid var(--hair); font-variant-numeric: tabular-nums; font-family: var(--font-data); font-size: 13px; }
+th:first-child, td:first-child { text-align: left; font-family: var(--font-ui); font-size: 14px; }
+td.trend-cell { color: var(--ink); font-weight: 500; }
+td.diff { color: var(--ink-2); }
+tr:last-child td { border-bottom: 0; }
+.remove {
+  border: 0; background: none; color: var(--muted); width: 28px; height: 28px; border-radius: 6px;
+  display: inline-grid; place-items: center; font-size: 18px; line-height: 1;
+}
+.remove:hover { color: var(--danger); background: var(--bg); }
+.more { display: flex; justify-content: center; padding: 10px; }
+.text-btn { border: 0; background: none; color: var(--accent); font-weight: 600; padding: 4px 6px; border-radius: 6px; }
+.text-btn:hover { text-decoration: underline; }
+.text-btn.danger { color: var(--danger); }
+
+/* Settings */
+.settings { padding: 16px; display: grid; gap: 14px; }
+.settings-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.settings-row > label { min-width: 110px; color: var(--ink-2); font-size: 14px; }
+.settings .with-unit { width: 140px; }
+.settings .hint { color: var(--ink-2); font-size: 13px; }
+
+@media (max-width: 720px) {
+  .summary { grid-template-columns: minmax(0, 1fr); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats > div:nth-child(3) { border-left: 0; }
+  .stats > div:nth-child(n + 3) { border-top: 1px solid var(--hair); }
+  .hero-value { font-size: 52px; }
+  .chart { height: 260px; }
+  th, td { padding-inline: 8px; }
+  th:first-child, td:first-child { padding-left: 12px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand">
+      <h1>Weighttrack</h1>
+      <p>Your trend weight smooths out daily water-weight swings so you can see real change.</p>
+    </div>
+    <div class="seg" role="group" aria-label="Units">
+      <button type="button" data-unit="kg" aria-pressed="true">kg</button>
+      <button type="button" data-unit="lb" aria-pressed="false">lb</button>
+    </div>
+  </header>
+
+  <div class="banner" id="example-banner" hidden>
+    <p>These are example weigh-ins so you can try it out. Add or remove entries to see how the trend reacts. Everything is saved in this browser only.</p>
+    <button type="button" class="text-btn" id="banner-clear">Clear examples and start fresh</button>
+  </div>
+
+  <section class="summary" aria-label="Summary">
+    <div>
+      <p class="label">Trend weight</p>
+      <p class="hero-value"><span id="hero-num">–</span> <span class="unit" data-unit-label>kg</span></p>
+      <p class="hero-sub" id="hero-sub">Log a weigh-in to start your trend.</p>
+    </div>
+    <form class="card log" id="log-form" novalidate>
+      <h2>Log a weigh-in</h2>
+      <div class="fields">
+        <label class="field" for="log-date">Date
+          <input type="date" id="log-date" required>
+        </label>
+        <label class="field" for="log-weight">Weight
+          <span class="with-unit">
+            <input type="text" id="log-weight" inputmode="decimal" autocomplete="off" placeholder="0.0" required>
+            <span data-unit-label>kg</span>
+          </span>
+        </label>
+      </div>
+      <button type="submit" class="primary">Save weigh-in</button>
+      <p class="form-msg" id="log-msg" role="status"></p>
+    </form>
+  </section>
+
+  <dl class="stats" aria-label="Progress">
+    <div><dt>Last 7 days</dt><dd class="stat-value" id="stat-7">–</dd><dd class="stat-note">Change in trend</dd></div>
+    <div><dt>Last 30 days</dt><dd class="stat-value" id="stat-30">–</dd><dd class="stat-note">Change in trend</dd></div>
+    <div><dt>Weekly rate</dt><dd class="stat-value" id="stat-rate">–</dd><dd class="stat-note">Over the last 4 weeks</dd></div>
+    <div><dt>Goal</dt><dd class="stat-value" id="stat-goal">–</dd><dd class="stat-note" id="stat-goal-note">Not set</dd></div>
+  </dl>
+
+  <section aria-labelledby="history-title">
+    <div class="history-head">
+      <h2 id="history-title">History</h2>
+      <div class="seg" role="group" aria-label="Date range" id="range-seg">
+        <button type="button" data-range="1M" aria-pressed="false">1M</button>
+        <button type="button" data-range="3M" aria-pressed="true">3M</button>
+        <button type="button" data-range="6M" aria-pressed="false">6M</button>
+        <button type="button" data-range="1Y" aria-pressed="false">1Y</button>
+        <button type="button" data-range="All" aria-pressed="false">All</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card chart-card" aria-label="Weight chart">
+    <ul class="legend" id="legend">
+      <li><svg width="18" height="10" aria-hidden="true"><line x1="1" y1="5" x2="17" y2="5" stroke="var(--trend)" stroke-width="2" stroke-linecap="round"/></svg>Trend</li>
+      <li><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill="var(--reading)"/></svg>Scale reading</li>
+      <li id="legend-goal"><svg width="18" height="10" aria-hidden="true"><line x1="1" y1="5" x2="17" y2="5" stroke="var(--ink-2)" stroke-width="1" stroke-dasharray="3 3"/></svg>Goal</li>
+    </ul>
+    <div class="chart" id="chart" tabindex="0" role="img" aria-label="Weight chart">
+      <svg id="chart-svg" aria-hidden="true"></svg>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <div class="empty" id="chart-empty" hidden>
+      <strong>No weigh-ins in this range</strong>
+      <p id="chart-empty-text">Log a weigh-in above. The trend line starts with your first entry, and the weekly rate appears after a week.</p>
+      <button type="button" class="text-btn" id="empty-example">Load example data</button>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="table-title">
+    <h2 class="sr" id="table-title">Weigh-ins</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Scale</th>
+            <th scope="col">Trend</th>
+            <th scope="col">vs trend</th>
+            <th scope="col"><span class="sr">Remove</span></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="more" id="more" hidden><button type="button" class="text-btn" id="more-btn"></button></div>
+  </section>
+
+  <section class="card settings" aria-labelledby="settings-title">
+    <h2 id="settings-title">Settings</h2>
+    <div class="settings-row">
+      <label for="goal-input">Goal weight</label>
+      <span class="with-unit">
+        <input type="text" id="goal-input" inputmode="decimal" autocomplete="off" placeholder="None">
+        <span data-unit-label>kg</span>
+      </span>
+      <span class="hint" id="goal-msg" role="status"></span>
+    </div>
+    <div class="settings-row">
+      <label>Data</label>
+      <button type="button" class="text-btn danger" id="clear-btn">Clear all weigh-ins</button>
+      <button type="button" class="text-btn" id="example-btn">Load example data</button>
+    </div>
+    <p class="hint">The trend moves 10% of the way toward each new reading, the method used by Happy Scale and The Hacker's Diet.</p>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
